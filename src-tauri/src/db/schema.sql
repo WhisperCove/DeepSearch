@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    path TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    ext TEXT NOT NULL DEFAULT '',
+    size INTEGER NOT NULL DEFAULT 0,
+    modified_at INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_files_name ON files(name);
+CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
