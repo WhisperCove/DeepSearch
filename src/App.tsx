@@ -5,6 +5,7 @@ import { PreviewPanel } from "./components/PreviewPanel";
 import { FilterBar } from "./components/FilterBar";
 import { StatusBar } from "./components/StatusBar";
 import { useSearch } from "./hooks/useSearch";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { SearchResult, PreviewResult, FilterType } from "./types";
 
 const FILTER_EXT_MAP: Record<string, string[]> = {
@@ -26,10 +27,8 @@ function App() {
   const { searchQuery, previewFile, openFolder, copyPath } = useSearch();
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
-    // Generate unique ID to force re-render and restart animation
     const id = Date.now();
     setToast({ id, message, type });
-    // Auto-remove after animation completes
     setTimeout(() => {
       setToast((prev) => (prev?.id === id ? null : prev));
     }, 2200);
@@ -98,6 +97,38 @@ function App() {
     }
   }, []);
 
+  const handleMinimize = useCallback(async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.minimize();
+    } catch (error) {
+      console.error("Minimize failed:", error);
+    }
+  }, []);
+
+  const handleMaximize = useCallback(async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      const isMaximized = await appWindow.isMaximized();
+      if (isMaximized) {
+        await appWindow.unmaximize();
+      } else {
+        await appWindow.maximize();
+      }
+    } catch (error) {
+      console.error("Maximize failed:", error);
+    }
+  }, []);
+
+  const handleClose = useCallback(async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      await appWindow.close();
+    } catch (error) {
+      console.error("Close failed:", error);
+    }
+  }, []);
+
   const getFilteredResults = () => {
     if (activeFilter === "all") return results;
     if (activeFilter === "other") {
@@ -111,9 +142,54 @@ function App() {
   const filteredResults = getFilteredResults();
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
-      {/* Search bar */}
-      <div className="flex-none px-6 pt-6 pb-4">
+    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
+      {/* Title bar with window controls - data-tauri-drag-region enables dragging */}
+      <div data-tauri-drag-region className="flex-none flex items-center justify-between px-4 pt-3 pb-1 cursor-default">
+        {/* Left spacer for centering */}
+        <div className="w-20" />
+        
+        {/* App title - centered */}
+        <div className="text-sm font-medium text-gray-500 dark:text-gray-400 select-none">
+          LocalSearch Pro
+        </div>
+        
+        {/* Window control buttons */}
+        <div className="flex items-center gap-1 w-20 justify-end">
+          <button
+            onClick={handleMinimize}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title="最小化"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeWidth={2} d="M5 12h14" />
+            </svg>
+          </button>
+          <button
+            onClick={handleMaximize}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title="最大化"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <rect x="5" y="5" width="14" height="14" rx={1} strokeWidth={2} />
+            </svg>
+          </button>
+          <button
+            onClick={handleClose}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            title="关闭"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeWidth={2} d="M6 6l12 12M6 18L18 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Search bar - moved down */}
+      <div className="flex-none px-6 pb-4">
         <SearchBar query={query} onSearch={handleSearch} isLoading={isLoading} />
       </div>
 
@@ -150,11 +226,11 @@ function App() {
         <StatusBar />
       </div>
 
-      {/* Toast notification - instant appear */}
+      {/* Toast notification */}
       {toast && (
         <div
           key={toast.id}
-          className="fixed top-4 right-4 z-50 animate-toast"
+          className="fixed top-4 right-4 z-50"
           style={{
             animation: "toast-in 0.15s ease-out, toast-out 0.3s ease-in 1.8s forwards"
           }}
