@@ -29,12 +29,20 @@ const SKIP_DIRS: &[&str] = &[
 
 /// File extensions to index
 const INDEXABLE_EXTS: &[&str] = &[
-    "txt", "md", "log", "csv", "json", "xml", "yaml", "yml", "toml",
+    // Text files
+    "txt", "md", "markdown", "log", "csv", "json", "xml", "yaml", "yml", "toml",
+    // Code files
     "js", "jsx", "ts", "tsx", "py", "rs", "go", "java", "cpp", "c", "h", "hpp",
     "css", "html", "htm", "scss", "less", "sh", "bash", "ps1", "bat", "cmd",
-    "sql", "r", "lua", "ini", "cfg", "conf", "env",
-    "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
-    "lnk", "url", "exe", "dll",
+    "sql", "r", "lua", "vim", "ini", "cfg", "conf", "env",
+    // Document files
+    "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt", "rtf", "odt", "ods", "odp",
+    // Image files
+    "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif",
+    // Windows shortcuts
+    "lnk", "url",
+    // Other
+    "exe", "dll", "sys", "tmp",
 ];
 
 /// Index progress tracking

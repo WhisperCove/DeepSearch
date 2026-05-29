@@ -60,13 +60,15 @@ pub async fn search_query(
 
     let like_pattern = format!("%{}%", query);
 
-    // LIKE search on name and path
+    // LIKE search on name and path, prioritize name matches
     let mut stmt = conn
         .prepare(
             "SELECT id, path, name, ext, size, modified_at
              FROM files
              WHERE name LIKE ?1 OR path LIKE ?1
-             ORDER BY name
+             ORDER BY
+               CASE WHEN name LIKE ?1 THEN 0 ELSE 1 END,
+               name
              LIMIT ?2 OFFSET ?3",
         )
         .map_err(|e| e.to_string())?;

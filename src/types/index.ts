@@ -51,4 +51,4 @@ export interface AppConfig {
   autoStart: boolean;
 }
 
-export type FilterType = "all" | "document" | "spreadsheet" | "code" | "shortcut" | "other";
+export type FilterType = "all" | "document" | "code" | "image" | "shortcut" | "other";

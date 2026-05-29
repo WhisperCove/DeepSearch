@@ -15,23 +15,25 @@ pub async fn open_folder(path: String) -> Result<(), String> {
     open::that(parent).map_err(|e| format!("Failed to open folder: {}", e))
 }
 
-/// Copy file path to clipboard
+/// Copy file path to clipboard (no surrounding quotes)
 #[tauri::command(rename_all = "camelCase")]
 pub async fn copy_path(path: String) -> Result<(), String> {
     tracing::info!("[CONFIG] Copying path to clipboard: {}", path);
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        // Use PowerShell Set-Clipboard to avoid quotes that cmd echo | clip adds
+        let ps_command = format!("Set-Clipboard -Value '{}'", path.replace("'", "''"));
+        Command::new("powershell")
+            .args(["-Command", &ps_command])
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
         Command::new("pbcopy")
             .arg(&path)
-            .output()
-            .map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-        Command::new("cmd")
-            .args(["/C", "echo", &path, "|", "clip"])
             .output()
             .map_err(|e| e.to_string())?;
     }
