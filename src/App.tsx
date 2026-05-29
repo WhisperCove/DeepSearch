@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { SearchBar } from "./components/SearchBar";
 import { ResultList } from "./components/ResultList";
 import { PreviewPanel } from "./components/PreviewPanel";
@@ -21,20 +21,18 @@ function App() {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{ id: number; message: string; type: "success" | "error" } | null>(null);
 
   const { searchQuery, previewFile, openFolder, copyPath } = useSearch();
 
-  // Toast auto-hide
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-
   const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
+    // Generate unique ID to force re-render and restart animation
+    const id = Date.now();
+    setToast({ id, message, type });
+    // Auto-remove after animation completes
+    setTimeout(() => {
+      setToast((prev) => (prev?.id === id ? null : prev));
+    }, 2200);
   };
 
   const handleSearch = useCallback(async (searchQueryStr: string) => {
@@ -85,18 +83,18 @@ function App() {
   const handleCopyPath = useCallback(async (path: string) => {
     try {
       await copyPath(path);
-      showToast("路径已复制到剪贴板");
+      showToast("路径已复制");
     } catch (error) {
-      showToast("复制路径失败", "error");
+      showToast("复制失败", "error");
     }
   }, [copyPath]);
 
   const handleCopyContent = useCallback(async (content: string) => {
     try {
       await navigator.clipboard.writeText(content);
-      showToast("内容已复制到剪贴板");
+      showToast("内容已复制");
     } catch (error) {
-      showToast("复制内容失败", "error");
+      showToast("复制失败", "error");
     }
   }, []);
 
@@ -152,24 +150,30 @@ function App() {
         <StatusBar />
       </div>
 
-      {/* Toast notification */}
+      {/* Toast notification - instant appear */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 ${
-          toast.type === "success" 
-            ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200" 
-            : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
-        }`}>
-          <div className="flex items-center gap-2">
+        <div
+          key={toast.id}
+          className="fixed top-4 right-4 z-50 animate-toast"
+          style={{
+            animation: "toast-in 0.15s ease-out, toast-out 0.3s ease-in 1.8s forwards"
+          }}
+        >
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm ${
+            toast.type === "success" 
+              ? "bg-white/95 dark:bg-gray-800/95 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200" 
+              : "bg-red-50/95 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
+          }`}>
             {toast.type === "success" ? (
-              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             ) : (
-              <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             )}
-            <span className="text-sm font-medium">{toast.message}</span>
+            <span className="text-sm font-medium whitespace-nowrap">{toast.message}</span>
           </div>
         </div>
       )}
