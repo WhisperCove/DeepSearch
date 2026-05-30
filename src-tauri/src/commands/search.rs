@@ -21,7 +21,7 @@ pub struct SearchFilters {
     pub ext: Option<Vec<String>>,
 }
 
-/// Execute a file search query - returns ALL matching results (no pagination)
+/// Execute a file search query - returns up to 500 matching results
 #[tauri::command]
 pub async fn search_query(
     query: String,
@@ -54,7 +54,7 @@ pub async fn search_query(
 
     tracing::info!("[SEARCH] Total matching files: {}", total);
 
-    // Get ALL results (no LIMIT)
+    // Get up to 500 results (LIMIT 500)
     let mut stmt = conn
         .prepare(
             "SELECT id, path, name, ext, size, modified_at
@@ -62,7 +62,8 @@ pub async fn search_query(
              WHERE name LIKE ?1 OR path LIKE ?1
              ORDER BY 
                CASE WHEN name LIKE ?1 THEN 0 ELSE 1 END,
-               name",
+               name
+             LIMIT 500",
         )
         .map_err(|e| {
             tracing::error!("[SEARCH] Failed to prepare statement: {}", e);
