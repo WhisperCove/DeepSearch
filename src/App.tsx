@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { SearchBar } from "./components/SearchBar";
 import { ResultList } from "./components/ResultList";
 import { PreviewPanel } from "./components/PreviewPanel";
@@ -18,6 +18,10 @@ const FILTER_EXT_MAP: Record<string, string[]> = {
 function App() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,21 +42,75 @@ function App() {
     setQuery(searchQueryStr);
     if (!searchQueryStr.trim()) {
       setResults([]);
+      setTotalResults(0);
+      setHasMore(false);
       setSelectedResult(null);
       setPreview(null);
       return;
     }
     setIsLoading(true);
+    setCurrentPage(1);
     try {
-      const searchResults = await searchQuery(searchQueryStr);
-      setResults(searchResults);
+      const response = await searchQuery(searchQueryStr, 1, 50);
+      setResults(response.results);
+      setTotalResults(response.total);
+      setHasMore(response.hasMore);
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
+      setTotalResults(0);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
   }, [searchQuery]);
+
+  // Load more results (next page)
+  const handleLoadMore = useCallback(async () => {
+    if (!query.trim() || !hasMore || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    const nextPage = currentPage + 1;
+    try {
+      const response = await searchQuery(query, nextPage, 200); // Load 200 at a time after initial 50
+      setResults(prev => [...prev, ...response.results]);
+      setHasMore(response.hasMore);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error("Load more error:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [query, hasMore, isLoadingMore, currentPage, searchQuery]);
+
+  // Auto-load more when scrolling to bottom via IntersectionObserver
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          handleLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasMore, isLoadingMore, handleLoadMore]);
 
   const handleFilterChange = useCallback((filter: FilterType) => {
     setActiveFilter(filter);
@@ -207,6 +265,32 @@ function App() {
             onOpenFolder={handleOpenFolder}
             onCopyPath={handleCopyPath}
           />
+
+          {/* Load more trigger - IntersectionObserver target */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="p-4 text-center">
+              {isLoadingMore ? (
+                <div className="flex items-center justify-center gap-2 text-gray-400">
+                  <div className="w-4 h-4 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                  <span className="text-sm">加载更多...</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleLoadMore}
+                  className="text-sm text-blue-500 hover:text-blue-600 transition-colors"
+                >
+                  加载更多结果
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Total count display */}
+          {totalResults > 0 && (
+            <div className="p-2 text-center text-xs text-gray-400">
+              共 {totalResults} 个结果，已显示 {results.length} 个
+            </div>
+          )}
         </div>
         <div className="w-3/5 overflow-y-auto">
           <PreviewPanel

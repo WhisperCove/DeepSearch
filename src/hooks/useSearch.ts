@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { SearchResult, IndexStatus, PreviewResult } from "../types";
+import type { SearchResult, SearchResultResponse, IndexStatus, PreviewResult } from "../types";
 
 export function useSearch() {
   const searchQuery = async (
@@ -7,12 +7,12 @@ export function useSearch() {
     page = 1,
     pageSize = 50,
     filters?: { ext?: string[] },
-  ): Promise<SearchResult[]> => {
+  ): Promise<SearchResultResponse> => {
     try {
       return await invoke("search_query", { query, page, pageSize, filters });
     } catch (error) {
       console.error("Search failed:", error);
-      return [];
+      return { results: [], total: 0, hasMore: false };
     }
   };
 

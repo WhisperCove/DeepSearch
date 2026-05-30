@@ -9,6 +9,12 @@ export interface SearchResult {
   snippets: Snippet[];
 }
 
+export interface SearchResultResponse {
+  results: SearchResult[];
+  total: number;
+  hasMore: boolean;
+}
+
 export interface Snippet {
   text: string;
   highlights: Highlight[];

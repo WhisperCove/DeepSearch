@@ -15,13 +15,21 @@ pub struct SearchResult {
     pub modified_at: i64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResultResponse {
+    pub results: Vec<SearchResult>,
+    pub total: usize,
+    pub has_more: bool,
+}
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchFilters {
     pub ext: Option<Vec<String>>,
 }
 
-/// Execute a file search query
+/// Execute a file search query with pagination support
 #[tauri::command(rename_all = "camelCase")]
 pub async fn search_query(
     query: String,
@@ -29,18 +37,22 @@ pub async fn search_query(
     page_size: Option<usize>,
     filters: Option<SearchFilters>,
     db: tauri::State<'_, Arc<Database>>,
-) -> Result<Vec<SearchResult>, String> {
+) -> Result<SearchResultResponse, String> {
     let page = page.unwrap_or(1);
-    let page_size = page_size.unwrap_or(50);
+    let page_size = page_size.unwrap_or(50); // First load: 50 results for fast initial display
     let offset = ((page - 1) * page_size) as i64;
 
     if query.trim().is_empty() {
         tracing::info!("[SEARCH] Empty query, returning empty results");
-        return Ok(vec![]);
+        return Ok(SearchResultResponse {
+            results: vec![],
+            total: 0,
+            has_more: false,
+        });
     }
 
     tracing::info!(
-        "[SEARCH] query='{}', page={}, size={}",
+        "[SEARCH] query='{}', page={}, page_size={}",
         query,
         page,
         page_size
@@ -55,10 +67,25 @@ pub async fn search_query(
 
     if total_in_db == 0 {
         tracing::warn!("[SEARCH] Database is empty - no files indexed yet");
-        return Ok(vec![]);
+        return Ok(SearchResultResponse {
+            results: vec![],
+            total: 0,
+            has_more: false,
+        });
     }
 
     let like_pattern = format!("%{}%", query);
+
+    // Get total count of matching results
+    let total: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM files WHERE name LIKE ?1 OR path LIKE ?1",
+            params![like_pattern],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    tracing::info!("[SEARCH] Total matching files: {}", total);
 
     // LIKE search on name and path, prioritize name matches
     let mut stmt = conn
@@ -100,7 +127,19 @@ pub async fn search_query(
         }
     }
 
-    tracing::info!("[SEARCH] Found {} results", results.len());
+    let has_more = (offset + results.len() as i64) < total;
 
-    Ok(results)
+    tracing::info!(
+        "[SEARCH] Returned {} results (page {}), total={}, has_more={}",
+        results.len(),
+        page,
+        total,
+        has_more
+    );
+
+    Ok(SearchResultResponse {
+        results,
+        total: total as usize,
+        has_more,
+    })
 }
