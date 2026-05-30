@@ -144,21 +144,24 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
       {/* Title bar with window controls - data-tauri-drag-region enables dragging */}
-      <div data-tauri-drag-region className="flex-none flex items-center justify-between px-4 pt-3 pb-1 cursor-default">
+      <div 
+        data-tauri-drag-region 
+        className="flex-none flex items-center justify-between px-4 pt-3 pb-1 select-none"
+        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+      >
         {/* Left spacer for centering */}
         <div className="w-20" />
         
         {/* App title - centered */}
-        <div className="text-sm font-medium text-gray-500 dark:text-gray-400 select-none">
+        <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
           LocalSearch Pro
         </div>
         
-        {/* Window control buttons */}
-        <div className="flex items-center gap-1 w-20 justify-end">
+        {/* Window control buttons - WebkitAppRegion no-drag prevents drag when clicking buttons */}
+        <div className="flex items-center gap-1 w-20 justify-end" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           <button
             onClick={handleMinimize}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
             title="最小化"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,8 +170,7 @@ function App() {
           </button>
           <button
             onClick={handleMaximize}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
             title="最大化"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,8 +179,7 @@ function App() {
           </button>
           <button
             onClick={handleClose}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors rounded"
             title="关闭"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
