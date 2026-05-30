@@ -7,82 +7,64 @@ interface SplashScreenProps {
 
 export function SplashScreen({ isFirstLaunch, onComplete }: SplashScreenProps) {
   const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState("正在初始化...");
-  const [fadeOut, setFadeOut] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const stages = [
-      { text: "正在加载配置文件...", duration: 600 },
-      { text: "正在连接本地数据库...", duration: 800 },
-      { text: "正在验证系统环境...", duration: 500 },
-      { text: "准备就绪", duration: 300 },
-    ];
+    // Fade in
+    requestAnimationFrame(() => setVisible(true));
 
-    let currentStage = 0;
-    let elapsed = 0;
-    let isComplete = false;
+    // Progress animation
+    const duration = 1800;
+    const startTime = Date.now();
 
-    const interval = setInterval(() => {
-      if (isComplete) return;
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const p = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - p, 3);
+      setProgress(eased * 100);
 
-      if (currentStage < stages.length) {
-        setStatusText(stages[currentStage].text);
-        elapsed += 50;
-        
-        if (elapsed >= stages[currentStage].duration) {
-          currentStage++;
-          elapsed = 0;
-        }
-        
-        const baseProgress = (currentStage / stages.length) * 100;
-        const stageProgress = currentStage < stages.length 
-          ? (elapsed / stages[currentStage].duration) * (100 / stages.length)
-          : 0;
-        setProgress(Math.min(baseProgress + stageProgress, 100));
+      if (p < 1) {
+        requestAnimationFrame(animate);
       } else {
-        isComplete = true;
-        clearInterval(interval);
-        setFadeOut(true);
+        // Fade out
+        setVisible(false);
         setTimeout(onComplete, 300);
       }
-    }, 50);
+    };
 
-    return () => clearInterval(interval);
-  }, []); // Empty dependency array - onComplete is stable
+    requestAnimationFrame(animate);
+  }, []); // Stable - no deps
 
   return (
     <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-gray-950 transition-opacity duration-300 ${
-        fadeOut ? "opacity-0" : "opacity-100"
-      }`}
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-gray-950 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
     >
-      <div className="text-center">
-        {/* Logo */}
-        <div className="mb-8">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gray-900 dark:bg-white rounded-2xl flex items-center justify-center">
-            <svg className="w-10 h-10 text-white dark:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">LocalSearch Pro</h1>
-          <p className="text-sm text-gray-500">本地文件智能检索工具</p>
+      {/* Logo */}
+      <div className="mb-10">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="48" height="48" rx="12" fill="currentColor" className="text-gray-900 dark:text-white"/>
+          <path d="M20 28L24 24M24 24L28 20M24 24L20 20M24 24L28 28" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-gray-950"/>
+          <circle cx="24" cy="24" r="8" stroke="white" strokeWidth="2" className="dark:stroke-gray-950"/>
+        </svg>
+      </div>
+
+      {/* App name */}
+      <h1 className="text-lg font-medium text-gray-900 dark:text-white tracking-tight mb-1">
+        LocalSearch Pro
+      </h1>
+      <p className="text-xs text-gray-400 mb-12">
+        本地文件智能检索
+      </p>
+
+      {/* Progress */}
+      <div className="w-32">
+        <div className="h-px bg-gray-100 dark:bg-gray-800 overflow-hidden">
+          <div 
+            className="h-full bg-gray-300 dark:bg-gray-700 transition-none"
+            style={{ width: `${progress}%` }}
+          />
         </div>
-
-        {/* Progress bar */}
-        <div className="w-48 mx-auto mb-6">
-          <div className="h-0.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gray-900 dark:bg-white transition-all duration-200 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Status text */}
-        <p className="text-xs text-gray-400">{statusText}</p>
-
-        {/* Copyright */}
-        <p className="text-xs text-gray-300 dark:text-gray-700 mt-12">© 2026 LocalSearch Pro</p>
       </div>
     </div>
   );
