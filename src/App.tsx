@@ -228,7 +228,7 @@ function App() {
       {toast && (
         <div
           key={toast.id}
-          className="fixed top-16 right-4 z-50"
+          className="fixed top-32 right-4 z-50"
           style={{
             animation: "toast-in 0.15s ease-out, toast-out 0.3s ease-in 1.8s forwards"
           }}
