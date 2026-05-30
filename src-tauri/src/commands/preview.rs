@@ -1,18 +1,19 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::db::Database;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewResult {
     #[serde(rename = "type")]
     pub preview_type: String,
     pub content: String,
+    pub language: Option<String>,
     pub metadata: FileMetadata,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileMetadata {
     pub id: String,
@@ -48,21 +49,42 @@ pub async fn preview_file(
     // Drop the lock before reading file content
     drop(conn);
 
-    // Read file content for preview
-    let content = read_preview_content(&path, &ext);
-
     let preview_type = match ext.as_str() {
+        "txt" | "md" | "log" | "ini" | "cfg" | "conf" | "env" | "lnk" | "url" | "csv" => "text",
         "js" | "jsx" | "ts" | "tsx" | "py" | "rs" | "go" | "java" | "cpp" | "c" | "h"
-        | "hpp" | "css" | "scss" | "less" | "sh" | "bash" | "sql" | "json" | "xml" | "yaml"
-        | "yml" | "toml" | "html" | "htm" | "ini" | "cfg" | "conf" => "code",
-        "csv" | "xlsx" | "xls" => "table",
+        | "hpp" | "css" | "scss" | "less" | "sh" | "bash" | "ps1" | "bat" | "cmd" | "sql"
+        | "r" | "lua" | "vim" | "json" | "xml" | "yaml" | "yml" | "toml" | "html" | "htm" => {
+            "code"
+        }
         "pdf" => "pdf",
-        "png" | "jpg" | "jpeg" | "gif" | "svg" | "bmp" | "webp" => "image",
-        _ => "text",
+        "docx" | "doc" => "docx",
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tiff" | "tif" => {
+            "image"
+        }
+        "xlsx" | "xls" => "table",
+        _ => "unsupported",
+    };
+
+    let content = match preview_type {
+        "text" | "code" => {
+            // Read as text
+            read_text_content(&path, &ext)
+        }
+        "pdf" | "docx" | "image" => {
+            // Read as binary and convert to base64
+            match std::fs::read(&path) {
+                Ok(bytes) => base64::encode(&bytes),
+                Err(e) => {
+                    tracing::error!("[PREVIEW] Failed to read binary file: {}", e);
+                    String::new()
+                }
+            }
+        }
+        _ => String::new(),
     };
 
     tracing::info!(
-        "[PREVIEW] Loaded: name='{}', type={}, size={}",
+        "[PREVIEW] Loaded: name='{}', type={}, content_len={}",
         name,
         preview_type,
         content.len()
@@ -71,6 +93,7 @@ pub async fn preview_file(
     Ok(PreviewResult {
         preview_type: preview_type.to_string(),
         content,
+        language: None,
         metadata: FileMetadata {
             id: file_id,
             name,
@@ -82,31 +105,8 @@ pub async fn preview_file(
     })
 }
 
-/// Read file content for preview (first 5000 chars for text)
-fn read_preview_content(path: &str, ext: &str) -> String {
-    // Binary file types - don't try to read content
-    match ext {
-        "png" | "jpg" | "jpeg" | "gif" | "svg" | "bmp" | "webp" => {
-            return format!("[{} image file]", ext);
-        }
-        "exe" | "dll" => {
-            return format!("[{} executable file]", ext);
-        }
-        _ => {}
-    }
-
-    // Text-like extensions
-    let text_exts = [
-        "txt", "md", "log", "csv", "json", "xml", "yaml", "yml", "toml",
-        "js", "jsx", "ts", "tsx", "py", "rs", "go", "java", "cpp", "c", "h", "hpp",
-        "css", "html", "htm", "scss", "less", "sh", "bash", "ps1", "bat", "cmd",
-        "sql", "r", "lua", "ini", "cfg", "conf", "env", "lnk", "url",
-    ];
-
-    if !text_exts.contains(&ext) && !ext.is_empty() {
-        return "Cannot preview this file type".to_string();
-    }
-
+/// Read text file content (first 5000 chars)
+fn read_text_content(path: &str, ext: &str) -> String {
     let bytes = match std::fs::read(path) {
         Ok(b) => b,
         Err(e) => return format!("Error reading file: {}", e),

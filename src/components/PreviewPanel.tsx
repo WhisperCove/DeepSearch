@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { FileText, Code, ImageIcon, Link, File, FolderOpen, Copy, ClipboardCopy } from "lucide-react";
 import type { SearchResult, PreviewResult } from "../types";
 
@@ -9,7 +10,7 @@ interface PreviewPanelProps {
   onCopyContent?: (content: string) => void;
 }
 
-const PREVIEWABLE_EXTS = [
+const PREVIEWABLE_TEXT_EXTS = [
   "txt", "md", "log", "json", "xml", "yaml", "yml", "toml",
   "js", "jsx", "ts", "tsx", "py", "rs", "go", "java", "cpp", "c", "h", "hpp",
   "css", "html", "htm", "scss", "less", "sh", "bash", "ps1", "bat", "cmd",
@@ -21,6 +22,10 @@ const CODE_EXTS = [
   "css", "html", "htm", "scss", "less", "sh", "bash", "ps1", "bat", "cmd",
   "sql", "r", "lua", "vim", "json", "xml", "yaml", "yml", "toml"
 ];
+
+const PDF_EXTS = ["pdf"];
+const DOCX_EXTS = ["docx", "doc"];
+const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -45,10 +50,125 @@ function getLanguageName(ext: string): string {
     sql: "SQL", r: "R", lua: "Lua", vim: "Vim",
     md: "Markdown", txt: "Plain Text", log: "Log",
     ini: "INI", cfg: "Config", conf: "Config", env: "Environment",
+    pdf: "PDF 文档", docx: "Word 文档", doc: "Word 文档",
+    png: "PNG 图片", jpg: "JPEG 图片", jpeg: "JPEG 图片",
+    gif: "GIF 图片", bmp: "BMP 图片", webp: "WebP 图片",
+    svg: "SVG 图片", ico: "ICO 图片", tiff: "TIFF 图片", tif: "TIFF 图片",
   };
   return langMap[ext] || ext.toUpperCase();
 }
 
+// PDF Preview Component
+function PdfPreview({ base64Content }: { base64Content: string }) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const binaryString = atob(base64Content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } catch (e) {
+      setError("PDF 解析失败");
+    }
+  }, [base64Content]);
+
+  if (error) {
+    return <div className="text-center text-red-500 p-8">{error}</div>;
+  }
+
+  if (!pdfUrl) {
+    return <div className="text-center text-gray-400 p-8">加载中...</div>;
+  }
+
+  return (
+    <iframe
+      src={pdfUrl}
+      className="w-full h-full border-0"
+      title="PDF Preview"
+    />
+  );
+}
+
+// DOCX Preview Component
+function DocxPreview({ base64Content }: { base64Content: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadMammoth = async () => {
+      try {
+        const mammoth = await import("mammoth");
+        const binaryString = atob(base64Content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer });
+        setHtml(result.value);
+      } catch (e) {
+        setError("DOCX 解析失败");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadMammoth();
+  }, [base64Content]);
+
+  if (loading) {
+    return <div className="text-center text-gray-400 p-8">加载中...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500 p-8">{error}</div>;
+  }
+
+  return (
+    <div
+      className="prose dark:prose-invert max-w-none p-4"
+      dangerouslySetInnerHTML={{ __html: html || "" }}
+    />
+  );
+}
+
+// Image Preview Component
+function ImagePreview({ base64Content, ext }: { base64Content: string; ext: string }) {
+  const mimeTypeMap: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    bmp: "image/bmp",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
+    tiff: "image/tiff",
+    tif: "image/tiff",
+  };
+
+  const mimeType = mimeTypeMap[ext] || "image/png";
+  const dataUrl = `data:${mimeType};base64,${base64Content}`;
+
+  return (
+    <div className="flex items-center justify-center h-full p-4">
+      <img
+        src={dataUrl}
+        alt="Preview"
+        className="max-w-full max-h-full object-contain"
+        style={{ maxHeight: "calc(100vh - 300px)" }}
+      />
+    </div>
+  );
+}
+
+// Text/Code Preview
 function renderCodeWithLineNumbers(content: string): JSX.Element {
   const lines = content.split('\n').slice(0, 100);
   return (
@@ -90,8 +210,38 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
     );
   }
 
-  const canPreview = PREVIEWABLE_EXTS.includes(result.ext);
+  const isText = PREVIEWABLE_TEXT_EXTS.includes(result.ext);
   const isCode = CODE_EXTS.includes(result.ext);
+  const isPdf = PDF_EXTS.includes(result.ext);
+  const isDocx = DOCX_EXTS.includes(result.ext);
+  const isImage = IMAGE_EXTS.includes(result.ext);
+  const canPreview = isText || isPdf || isDocx || isImage;
+
+  const renderPreview = () => {
+    if (!preview) return null;
+
+    if (isPdf) {
+      return <PdfPreview base64Content={preview.content} />;
+    }
+
+    if (isDocx) {
+      return <DocxPreview base64Content={preview.content} />;
+    }
+
+    if (isImage) {
+      return <ImagePreview base64Content={preview.content} ext={result.ext} />;
+    }
+
+    if (isCode) {
+      return renderCodeWithLineNumbers(preview.content);
+    }
+
+    if (isText) {
+      return renderTextContent(preview.content);
+    }
+
+    return null;
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
@@ -102,6 +252,8 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
             <div className="flex items-center gap-2">
               {isCode ? (
                 <Code className="w-4 h-4 text-blue-500" />
+              ) : isImage ? (
+                <ImageIcon className="w-4 h-4 text-green-500" />
               ) : (
                 <FileText className="w-4 h-4 text-gray-400" />
               )}
@@ -115,13 +267,9 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
       </div>
 
       {/* Content area */}
-      <div className="flex-1 overflow-auto min-h-0 p-4">
+      <div className="flex-1 overflow-auto min-h-0">
         {canPreview && preview ? (
-          isCode ? (
-            renderCodeWithLineNumbers(preview.content)
-          ) : (
-            renderTextContent(preview.content)
-          )
+          renderPreview()
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-gray-400">
@@ -174,7 +322,7 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
               复制路径
             </button>
           )}
-          {onCopyContent && preview && canPreview && (
+          {onCopyContent && preview && (isText || isCode) && (
             <button
               onClick={() => onCopyContent(preview.content)}
               className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700 hover:text-purple-600 dark:hover:text-purple-400 active:bg-purple-100 dark:active:bg-purple-900/30 text-gray-700 dark:text-gray-300 transition-all duration-150 rounded-lg shadow-sm hover:shadow-md"
