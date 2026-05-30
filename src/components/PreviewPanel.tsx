@@ -97,12 +97,18 @@ function PdfPreview({ base64Content }: { base64Content: string }) {
 }
 
 // DOCX Preview Component
-function DocxPreview({ base64Content }: { base64Content: string }) {
+function DocxPreview({ base64Content, ext }: { base64Content: string; ext: string }) {
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // .doc format is not supported by mammoth.js, only .docx
+    if (ext === "doc") {
+      setLoading(false);
+      return;
+    }
+
     const loadMammoth = async () => {
       try {
         const mammoth = await import("mammoth");
@@ -120,10 +126,23 @@ function DocxPreview({ base64Content }: { base64Content: string }) {
       }
     };
     loadMammoth();
-  }, [base64Content]);
+  }, [base64Content, ext]);
 
   if (loading) {
     return <div className="text-center text-gray-400 p-8">加载中...</div>;
+  }
+
+  if (ext === "doc") {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-gray-400">
+          <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
+          <p className="text-base font-medium text-gray-500">旧版 Word 文档</p>
+          <p className="text-sm mt-2 text-gray-400">.doc 格式需要转换为 .docx 才能预览</p>
+          <p className="text-xs mt-1 text-gray-300">请使用 Word 或 LibreOffice 转换格式</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -225,7 +244,7 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
     }
 
     if (isDocx) {
-      return <DocxPreview base64Content={preview.content} />;
+      return <DocxPreview base64Content={preview.content} ext={result.ext} />;
     }
 
     if (isImage) {
