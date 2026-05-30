@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { SearchBar } from "./components/SearchBar";
 import { ResultList } from "./components/ResultList";
 import { PreviewPanel } from "./components/PreviewPanel";
@@ -18,10 +18,6 @@ const FILTER_EXT_MAP: Record<string, string[]> = {
 function App() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [totalResults, setTotalResults] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,75 +38,21 @@ function App() {
     setQuery(searchQueryStr);
     if (!searchQueryStr.trim()) {
       setResults([]);
-      setTotalResults(0);
-      setHasMore(false);
       setSelectedResult(null);
       setPreview(null);
       return;
     }
     setIsLoading(true);
-    setCurrentPage(1);
     try {
-      const response = await searchQuery(searchQueryStr, 1, 50);
-      setResults(response.results);
-      setTotalResults(response.total);
-      setHasMore(response.hasMore);
+      const searchResults = await searchQuery(searchQueryStr);
+      setResults(searchResults);
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
-      setTotalResults(0);
-      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
   }, [searchQuery]);
-
-  // Load more results (next page)
-  const handleLoadMore = useCallback(async () => {
-    if (!query.trim() || !hasMore || isLoadingMore) return;
-
-    setIsLoadingMore(true);
-    const nextPage = currentPage + 1;
-    try {
-      const response = await searchQuery(query, nextPage, 200); // Load 200 at a time after initial 50
-      setResults(prev => [...prev, ...response.results]);
-      setHasMore(response.hasMore);
-      setCurrentPage(nextPage);
-    } catch (error) {
-      console.error("Load more error:", error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [query, hasMore, isLoadingMore, currentPage, searchQuery]);
-
-  // Auto-load more when scrolling to bottom via IntersectionObserver
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          handleLoadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [hasMore, isLoadingMore, handleLoadMore]);
 
   const handleFilterChange = useCallback((filter: FilterType) => {
     setActiveFilter(filter);
@@ -157,8 +99,7 @@ function App() {
 
   const handleMinimize = useCallback(async () => {
     try {
-      const appWindow = getCurrentWindow();
-      await appWindow.minimize();
+      await getCurrentWindow().minimize();
     } catch (error) {
       console.error("Minimize failed:", error);
     }
@@ -180,8 +121,7 @@ function App() {
 
   const handleClose = useCallback(async () => {
     try {
-      const appWindow = getCurrentWindow();
-      await appWindow.close();
+      await getCurrentWindow().close();
     } catch (error) {
       console.error("Close failed:", error);
     }
@@ -201,50 +141,24 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-4xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
-      {/* Title bar with window controls - data-tauri-drag-region enables dragging */}
-      <div 
-        data-tauri-drag-region 
-        className="flex-none flex items-center justify-between px-4 pt-3 pb-1 select-none"
-        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      >
-        {/* Left spacer for centering */}
+      {/* Title bar */}
+      <div data-tauri-drag-region className="flex-none flex items-center justify-between px-4 pt-3 pb-1 select-none" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
         <div className="w-20" />
-        
         <div className="w-20" />
-        
-        {/* Window control buttons - WebkitAppRegion no-drag prevents drag when clicking buttons */}
         <div className="flex items-center gap-1 w-20 justify-end" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-          <button
-            onClick={handleMinimize}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
-            title="最小化"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeWidth={2} d="M5 12h14" />
-            </svg>
+          <button onClick={handleMinimize} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded" title="最小化">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M5 12h14" /></svg>
           </button>
-          <button
-            onClick={handleMaximize}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded"
-            title="最大化"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="5" y="5" width="14" height="14" rx={1} strokeWidth={2} />
-            </svg>
+          <button onClick={handleMaximize} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors rounded" title="最大化">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx={1} strokeWidth={2} /></svg>
           </button>
-          <button
-            onClick={handleClose}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors rounded"
-            title="关闭"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeWidth={2} d="M6 6l12 12M6 18L18 6" />
-            </svg>
+          <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors rounded" title="关闭">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M6 6l12 12M6 18L18 6" /></svg>
           </button>
         </div>
       </div>
 
-      {/* Search bar - moved down */}
+      {/* Search bar */}
       <div className="flex-none px-6 pb-4">
         <SearchBar query={query} onSearch={handleSearch} isLoading={isLoading} />
       </div>
@@ -265,32 +179,6 @@ function App() {
             onOpenFolder={handleOpenFolder}
             onCopyPath={handleCopyPath}
           />
-
-          {/* Load more trigger - IntersectionObserver target */}
-          {hasMore && (
-            <div ref={loadMoreRef} className="p-4 text-center">
-              {isLoadingMore ? (
-                <div className="flex items-center justify-center gap-2 text-gray-400">
-                  <div className="w-4 h-4 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-                  <span className="text-sm">加载更多...</span>
-                </div>
-              ) : (
-                <button
-                  onClick={handleLoadMore}
-                  className="text-sm text-blue-500 hover:text-blue-600 transition-colors"
-                >
-                  加载更多结果
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Total count display */}
-          {totalResults > 0 && (
-            <div className="p-2 text-center text-xs text-gray-400">
-              共 {totalResults} 个结果，已显示 {results.length} 个
-            </div>
-          )}
         </div>
         <div className="w-3/5 overflow-y-auto">
           <PreviewPanel
@@ -308,28 +196,14 @@ function App() {
         <StatusBar />
       </div>
 
-      {/* Toast notification */}
+      {/* Toast */}
       {toast && (
-        <div
-          key={toast.id}
-          className="fixed top-32 right-4 z-50"
-          style={{
-            animation: "toast-in 0.15s ease-out, toast-out 0.3s ease-in 1.8s forwards"
-          }}
-        >
-          <div className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm ${
-            toast.type === "success" 
-              ? "bg-white/95 dark:bg-gray-800/95 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200" 
-              : "bg-red-50/95 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
-          }`}>
+        <div key={toast.id} className="fixed top-32 right-4 z-50" style={{ animation: "toast-in 0.15s ease-out, toast-out 0.3s ease-in 1.8s forwards" }}>
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm ${toast.type === "success" ? "bg-white/95 dark:bg-gray-800/95 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200" : "bg-red-50/95 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"}`}>
             {toast.type === "success" ? (
-              <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
+              <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
             ) : (
-              <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             )}
             <span className="text-sm font-medium whitespace-nowrap">{toast.message}</span>
           </div>
