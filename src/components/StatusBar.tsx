@@ -26,7 +26,8 @@ export function StatusBar() {
 
   return (
     <div className="flex items-center justify-between px-6 py-2.5 text-sm text-gray-500 bg-gray-50 dark:bg-gray-900">
-      <div className="flex items-center gap-6">
+      {/* Left: Index status */}
+      <div className="flex items-center gap-6 flex-1">
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-gray-400" />
           <span>{status.totalFiles.toLocaleString()} 个文件已索引</span>
@@ -36,26 +37,32 @@ export function StatusBar() {
           <span>最后更新：{lastUpdateStr}</span>
         </div>
       </div>
-      {/* Repo links */}
-      <div className="flex items-center gap-4">
+      
+      {/* Center: Repo links */}
+      <div className="flex items-center gap-6">
         <a
           href="https://gitee.com/pure_full_of_smile/localsearch-pro"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          title="Gitee"
+          className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:underline underline-offset-4 transition-all duration-200 font-medium"
+          title="Gitee 仓库"
         >
-          Gitee
+          Gitee仓库
         </a>
         <a
           href="https://github.com/WhisperCove/localsearch-pro"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          title="GitHub"
+          className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:underline underline-offset-4 transition-all duration-200 font-medium"
+          title="GitHub 仓库"
         >
-          GitHub
+          GitHub仓库
         </a>
+      </div>
+
+      {/* Right: Version */}
+      <div className="flex-1 text-right">
+        <span className="text-gray-300 dark:text-gray-600">LocalSearch Pro v0.1.0</span>
       </div>
     </div>
   );
