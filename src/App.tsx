@@ -142,7 +142,7 @@ function App() {
   const filteredResults = getFilteredResults();
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
+    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-4xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
       {/* Title bar with window controls - data-tauri-drag-region enables dragging */}
       <div 
         data-tauri-drag-region 
