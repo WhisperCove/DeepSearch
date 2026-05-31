@@ -1,4 +1,4 @@
-import { Files, FileText, Code, ImageIcon, Link, Package } from "lucide-react";
+import { Files, FileText, Code, ImageIcon, Film, Link, Package } from "lucide-react";
 import type { FilterType, SearchResult } from "../types";
 
 interface FilterBarProps {
@@ -12,6 +12,7 @@ const FILTER_CONFIG: { key: FilterType; label: string; icon: React.ReactNode; ex
   { key: "document", label: "文档", icon: <FileText className="w-4 h-4" />, exts: ["txt", "md", "log", "doc", "docx", "pdf", "rtf", "odt", "ods", "odp", "ppt", "pptx", "xls", "xlsx", "csv"] },
   { key: "code", label: "代码", icon: <Code className="w-4 h-4" />, exts: ["js", "jsx", "ts", "tsx", "py", "rs", "go", "java", "cpp", "c", "h", "hpp", "css", "html", "json", "xml", "yaml", "yml", "toml", "sh", "bat", "cmd", "sql", "ini", "cfg"] },
   { key: "image", label: "图片", icon: <ImageIcon className="w-4 h-4" />, exts: ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"] },
+  { key: "video", label: "视频", icon: <Film className="w-4 h-4" />, exts: ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "mpg", "mpeg"] },
   { key: "shortcut", label: "快捷方式", icon: <Link className="w-4 h-4" />, exts: ["lnk", "url"] },
   { key: "other", label: "其他", icon: <Package className="w-4 h-4" />, exts: [] },
 ];

@@ -62,6 +62,9 @@ pub async fn preview_file(
         "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tiff" | "tif" => {
             "image"
         }
+        "mp4" | "avi" | "mov" | "mkv" | "wmv" | "flv" | "webm" | "m4v" | "3gp" | "mpg" | "mpeg" => {
+            "video"
+        }
         "xlsx" | "xls" => "table",
         _ => "unsupported",
     };
@@ -101,7 +104,7 @@ pub async fn preview_file(
                 }
             }
         }
-        "pdf" | "docx" | "image" => {
+        "pdf" | "docx" | "image" | "video" => {
             // Read as binary and convert to base64
             match std::fs::read(&path) {
                 Ok(bytes) => base64::encode(&bytes),

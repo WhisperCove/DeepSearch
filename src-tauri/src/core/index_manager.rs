@@ -39,6 +39,8 @@ const INDEXABLE_EXTS: &[&str] = &[
     "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt", "rtf", "odt", "ods", "odp",
     // Image files
     "png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif",
+    // Video files
+    "mp4", "avi", "mov", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "mpg", "mpeg",
     // Windows shortcuts
     "lnk", "url",
     // Other

@@ -1,4 +1,4 @@
-import { FileText, Code, ImageIcon, Link, File, FolderOpen, Copy } from "lucide-react";
+import { FileText, Code, ImageIcon, Film, Link, File, FolderOpen, Copy } from "lucide-react";
 import type { SearchResult } from "../types";
 
 interface ResultListProps {
@@ -14,11 +14,13 @@ function getExtCategory(ext: string): string {
   const documentExts = ["txt", "md", "log", "doc", "docx", "pdf", "rtf", "odt", "ods", "odp", "ppt", "pptx", "xls", "xlsx", "csv"];
   const codeExts = ["js", "jsx", "ts", "tsx", "py", "rs", "go", "java", "cpp", "c", "h", "hpp", "css", "html", "json", "xml", "yaml", "yml", "toml", "sh", "bat", "cmd", "sql", "ini", "cfg"];
   const imageExts = ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"];
+  const videoExts = ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "mpg", "mpeg"];
   const shortcutExts = ["lnk", "url"];
   
   if (documentExts.includes(ext)) return "document";
   if (codeExts.includes(ext)) return "code";
   if (imageExts.includes(ext)) return "image";
+  if (videoExts.includes(ext)) return "video";
   if (shortcutExts.includes(ext)) return "shortcut";
   return "other";
 }
@@ -30,6 +32,7 @@ function getFileIcon(ext: string) {
     case "document": return <FileText className={iconClass} />;
     case "code": return <Code className={iconClass} />;
     case "image": return <ImageIcon className={iconClass} />;
+    case "video": return <Film className={iconClass} />;
     case "shortcut": return <Link className={iconClass} />;
     default: return <File className={iconClass} />;
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Code, ImageIcon, FolderOpen, Copy, ClipboardCopy } from "lucide-react";
+import { FileText, Code, ImageIcon, Film, FolderOpen, Copy, ClipboardCopy } from "lucide-react";
 import type { SearchResult, PreviewResult } from "../types";
 
 interface PreviewPanelProps {
@@ -26,6 +26,7 @@ const CODE_EXTS = [
 const PDF_EXTS = ["pdf"];
 const DOCX_EXTS = ["docx", "doc"];
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"];
+const VIDEO_EXTS = ["mp4", "avi", "mov", "mkv", "wmv", "flv", "webm", "m4v", "3gp", "mpg", "mpeg"];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -216,6 +217,39 @@ function ImagePreview({ base64Content, ext }: { base64Content: string; ext: stri
   );
 }
 
+// Video Preview Component
+function VideoPreview({ base64Content, ext }: { base64Content: string; ext: string }) {
+  const mimeTypeMap: Record<string, string> = {
+    mp4: "video/mp4",
+    avi: "video/x-msvideo",
+    mov: "video/quicktime",
+    mkv: "video/x-matroska",
+    wmv: "video/x-ms-wmv",
+    flv: "video/x-flv",
+    webm: "video/webm",
+    m4v: "video/mp4",
+    "3gp": "video/3gpp",
+    mpg: "video/mpeg",
+    mpeg: "video/mpeg",
+  };
+
+  const mimeType = mimeTypeMap[ext] || "video/mp4";
+  const dataUrl = `data:${mimeType};base64,${base64Content}`;
+
+  return (
+    <div className="flex items-center justify-center h-full p-4">
+      <video
+        src={dataUrl}
+        controls
+        className="max-w-full max-h-full"
+        style={{ maxHeight: "calc(100vh - 300px)" }}
+      >
+        您的浏览器不支持视频播放
+      </video>
+    </div>
+  );
+}
+
 // Text/Code Preview
 function renderCodeWithLineNumbers(content: string): JSX.Element {
   const lines = content.split('\n').slice(0, 100);
@@ -263,9 +297,10 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
   const isPdf = PDF_EXTS.includes(result.ext);
   const isDocx = DOCX_EXTS.includes(result.ext);
   const isImage = IMAGE_EXTS.includes(result.ext);
+  const isVideo = VIDEO_EXTS.includes(result.ext);
   // For .doc files, backend may return type="text" if it's actually plain text
   const isDocAsText = result.ext === "doc" && preview?.type === "text";
-  const canPreview = isText || isPdf || isDocx || isImage;
+  const canPreview = isText || isPdf || isDocx || isImage || isVideo;
 
   const renderPreview = () => {
     if (!preview) return null;
@@ -285,6 +320,10 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
 
     if (isImage) {
       return <ImagePreview base64Content={preview.content} ext={result.ext} />;
+    }
+
+    if (isVideo) {
+      return <VideoPreview base64Content={preview.content} ext={result.ext} />;
     }
 
     if (isCode) {
@@ -307,6 +346,8 @@ export function PreviewPanel({ preview, result, onOpenFolder, onCopyPath, onCopy
             <div className="flex items-center gap-2">
               {isCode ? (
                 <Code className="w-4 h-4 text-blue-500" />
+              ) : isVideo ? (
+                <Film className="w-4 h-4 text-pink-500" />
               ) : isImage ? (
                 <ImageIcon className="w-4 h-4 text-green-500" />
               ) : (
