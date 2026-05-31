@@ -29,7 +29,7 @@ function App() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [toast, setToast] = useState<{ id: number; message: string; type: "success" | "error" } | null>(null);
 
-  const { searchQuery, previewFile, openFolder, copyPath } = useSearch();
+  const { searchQuery, previewFile, openFolder, copyPath, createIndex } = useSearch();
 
   // Check if first launch (use ref to avoid re-renders)
   const isFirstLaunchRef = useRef(false);
@@ -124,6 +124,19 @@ function App() {
     }
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    console.log("[APP] Refresh triggered - re-indexing");
+    try {
+      const status = await createIndex([]);
+      console.log("[APP] Re-index result:", status);
+      if (query.trim()) {
+        handleSearch(query);
+      }
+    } catch (error) {
+      console.error("[APP] Refresh failed:", error);
+    }
+  }, [query, createIndex, handleSearch]);
+
   const handleMinimize = useCallback(async () => {
     try {
       await getCurrentWindow().minimize();
@@ -197,7 +210,7 @@ function App() {
 
       {/* Search bar */}
       <div className="flex-none px-6 pb-4">
-        <SearchBar query={query} onSearch={handleSearch} isLoading={isLoading} />
+        <SearchBar query={query} onSearch={handleSearch} onRefresh={handleRefresh} isLoading={isLoading} />
       </div>
 
       {/* Filter tabs */}

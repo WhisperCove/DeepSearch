@@ -30,31 +30,44 @@ pub async fn search_query(
     _filters: Option<SearchFilters>,
     db: tauri::State<'_, Arc<Database>>,
 ) -> Result<Vec<SearchResult>, String> {
-    tracing::info!("[SEARCH] Called with query='{}'", query);
+    tracing::info!("[SEARCH] ========== Search Started ==========");
+    tracing::info!("[SEARCH] Query: '{}'", query);
 
     if query.trim().is_empty() {
+        tracing::info!("[SEARCH] Empty query, returning empty results");
         return Ok(vec![]);
     }
 
     let conn = db.conn.lock().map_err(|e| {
-        tracing::error!("[SEARCH] Failed to lock DB: {}", e);
+        tracing::error!("[SEARCH] Failed to lock database: {}", e);
         e.to_string()
     })?;
 
-    let like_pattern = format!("%{}%", query);
-
-    // Get total count for logging
+    // Check total files in database
     let total: i64 = conn
+        .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
+        .unwrap_or(0);
+    tracing::info!("[SEARCH] Total files in database: {}", total);
+
+    if total == 0 {
+        tracing::warn!("[SEARCH] Database is empty! No files indexed.");
+        return Ok(vec![]);
+    }
+
+    let like_pattern = format!("%{}%", query);
+    tracing::info!("[SEARCH] LIKE pattern: '{}'", like_pattern);
+
+    // Count matching files
+    let match_count: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM files WHERE name LIKE ?1 OR path LIKE ?1",
             params![like_pattern],
             |row| row.get(0),
         )
         .unwrap_or(0);
+    tracing::info!("[SEARCH] Matching files: {}", match_count);
 
-    tracing::info!("[SEARCH] Total matching files: {}", total);
-
-    // Get up to 500 results (LIMIT 500)
+    // Get results
     let mut stmt = conn
         .prepare(
             "SELECT id, path, name, ext, size, modified_at
@@ -81,11 +94,23 @@ pub async fn search_query(
                 modified_at: row.get(5)?,
             })
         })
-        .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
+        .map_err(|e| {
+            tracing::error!("[SEARCH] Query execution failed: {}", e);
+            e.to_string()
+        })?
+        .filter_map(|r| {
+            match r {
+                Ok(row) => Some(row),
+                Err(e) => {
+                    tracing::warn!("[SEARCH] Row error: {}", e);
+                    None
+                }
+            }
+        })
         .collect();
 
     tracing::info!("[SEARCH] Returned {} results", results.len());
+    tracing::info!("[SEARCH] ========== Search Complete ==========");
 
     Ok(results)
 }

@@ -18,54 +18,47 @@ pub fn run() {
         )
         .init();
 
-    tracing::info!("=== DeepSearch Starting ===");
-    tracing::info!("OS: {} {}", std::env::consts::OS, std::env::consts::ARCH);
+    tracing::info!("===========================================");
+    tracing::info!("DeepSearch Starting");
+    tracing::info!("OS: {}", std::env::consts::OS);
+    tracing::info!("Arch: {}", std::env::consts::ARCH);
+    tracing::info!("===========================================");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
-            tracing::info!("Setup starting...");
+            tracing::info!("[SETUP] Starting application setup...");
 
-            // Get app data directory with fallbacks
+            // Get app data directory
             let app_dir = get_app_data_dir(app);
-            tracing::info!("Using app dir: {:?}", app_dir);
+            tracing::info!("[SETUP] App directory: {:?}", app_dir);
 
-            // Create directory with retry
-            if let Err(e) = std::fs::create_dir_all(&app_dir) {
-                tracing::error!("Failed to create {:?}: {}", app_dir, e);
-                // Try alternative paths
-                let alternatives = [
-                    std::env::temp_dir().join("DeepSearch"),
-                    dirs::home_dir().unwrap_or_default().join("DeepSearch"),
-                    std::path::PathBuf::from("C:\\DeepSearch"),
-                ];
-                for alt in &alternatives {
-                    if std::fs::create_dir_all(alt).is_ok() {
-                        tracing::info!("Using alternative: {:?}", alt);
-                        break;
-                    }
-                }
+            // Create directory
+            match std::fs::create_dir_all(&app_dir) {
+                Ok(_) => tracing::info!("[SETUP] Directory created/exists"),
+                Err(e) => tracing::error!("[SETUP] Failed to create directory: {}", e),
             }
 
             let db_path = app_dir.join("deepsearch.db");
-            tracing::info!("Database: {:?}", db_path);
+            tracing::info!("[SETUP] Database path: {:?}", db_path);
 
-            // Open database with retry
+            // Open database
             let db = open_database(&db_path);
 
             let db = Arc::new(db);
             app.manage(db.clone());
 
-            // Auto-index with error recovery
+            // Auto-index
             let db_clone = db.clone();
             std::thread::spawn(move || {
+                tracing::info!("[INDEX] Index thread started, waiting 2s...");
                 std::thread::sleep(std::time::Duration::from_secs(2));
                 auto_index(db_clone);
             });
 
-            tracing::info!("Setup complete");
+            tracing::info!("[SETUP] Setup complete");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -83,7 +76,6 @@ pub fn run() {
 }
 
 fn get_app_data_dir(app: &tauri::App) -> std::path::PathBuf {
-    // Try multiple methods
     if let Ok(dir) = app.path().app_data_dir() {
         return dir;
     }
@@ -97,10 +89,13 @@ fn get_app_data_dir(app: &tauri::App) -> std::path::PathBuf {
 }
 
 fn open_database(db_path: &std::path::Path) -> Database {
-    // Try primary path
+    tracing::info!("[DB] Attempting to open database at {:?}", db_path);
     match Database::open(db_path) {
-        Ok(db) => return db,
-        Err(e) => tracing::error!("DB open failed at {:?}: {}", db_path, e),
+        Ok(db) => {
+            tracing::info!("[DB] Database opened successfully at {:?}", db_path);
+            return db;
+        }
+        Err(e) => tracing::error!("[DB] Failed at {:?}: {}", db_path, e),
     }
 
     // Fallback paths
@@ -110,13 +105,14 @@ fn open_database(db_path: &std::path::Path) -> Database {
     ];
 
     for fallback in &fallbacks {
+        tracing::info!("[DB] Trying fallback: {:?}", fallback);
         let _ = std::fs::create_dir_all(fallback.parent().unwrap());
         match Database::open(fallback) {
             Ok(db) => {
-                tracing::info!("DB opened at {:?}", fallback);
+                tracing::info!("[DB] Database opened at fallback {:?}", fallback);
                 return db;
             }
-            Err(e) => tracing::error!("DB open failed at {:?}: {}", fallback, e),
+            Err(e) => tracing::error!("[DB] Fallback failed at {:?}: {}", fallback, e),
         }
     }
 
@@ -124,24 +120,35 @@ fn open_database(db_path: &std::path::Path) -> Database {
 }
 
 fn auto_index(db: Arc<Database>) {
-    tracing::info!("Auto-index starting...");
+    tracing::info!("[INDEX] =============================");
+    tracing::info!("[INDEX] Auto-index starting...");
+    tracing::info!("[INDEX] =============================");
 
     let dirs = core::index_manager::get_all_scan_dirs();
-    tracing::info!("Found {} directories", dirs.len());
+    tracing::info!("[INDEX] Found {} directories from config", dirs.len());
+
+    for dir in &dirs {
+        tracing::info!("[INDEX]   - {:?}", dir);
+    }
 
     // If no dirs found, try direct USERPROFILE scan
     let dirs = if dirs.is_empty() {
-        tracing::warn!("No dirs from get_all_scan_dirs(), trying USERPROFILE fallback");
+        tracing::warn!("[INDEX] No dirs from config, trying USERPROFILE fallback...");
         let mut fallback = Vec::new();
         if let Ok(up) = std::env::var("USERPROFILE") {
             let home = std::path::PathBuf::from(up);
+            tracing::info!("[INDEX] USERPROFILE: {:?}", home);
             for name in &["Desktop", "Documents", "Downloads", "桌面", "文档", "下载"] {
                 let path = home.join(name);
                 if path.exists() {
-                    tracing::info!("Fallback found: {:?}", path);
+                    tracing::info!("[INDEX] Fallback found: {:?}", path);
                     fallback.push(path);
+                } else {
+                    tracing::info!("[INDEX] Fallback not found: {:?}", path);
                 }
             }
+        } else {
+            tracing::error!("[INDEX] USERPROFILE env var not set!");
         }
         fallback
     } else {
@@ -149,12 +156,20 @@ fn auto_index(db: Arc<Database>) {
     };
 
     if dirs.is_empty() {
-        tracing::error!("No directories to scan!");
+        tracing::error!("[INDEX] No directories to scan!");
         return;
     }
 
+    tracing::info!("[INDEX] Scanning {} directories...", dirs.len());
     match core::index_manager::index_directory(&db, &dirs) {
-        Ok(p) => tracing::info!("Indexed: {} files", p.indexed),
-        Err(e) => tracing::error!("Index failed: {}", e),
+        Ok(p) => {
+            tracing::info!("[INDEX] =============================");
+            tracing::info!("[INDEX] Indexing Complete!");
+            tracing::info!("[INDEX] Total: {}", p.total);
+            tracing::info!("[INDEX] Indexed: {}", p.indexed);
+            tracing::info!("[INDEX] Skipped: {}", p.skipped);
+            tracing::info!("[INDEX] =============================");
+        }
+        Err(e) => tracing::error!("[INDEX] Indexing failed: {}", e),
     }
 }
