@@ -44,6 +44,10 @@
         "languages": ["SimpChinese"],
         "startMenuFolder": "DeepSearch",
         "installerIcon": "icons/icon.ico"
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
       }
     }
   },

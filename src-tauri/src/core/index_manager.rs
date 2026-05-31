@@ -250,15 +250,21 @@ fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) {
         return;
     }
 
+    tracing::info!("[INDEX] Scanning: {:?}", dir);
+
     let walker = walkdir::WalkDir::new(dir)
         .follow_links(false)
-        .max_depth(15)
+        .max_depth(5) // Limit depth to avoid permission issues on Win11 Pro
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
-            !SKIP_DIRS.iter().any(|skip| name.eq_ignore_ascii_case(skip))
+            // Skip hidden dirs, system dirs, and common large dirs
+            !name.starts_with('.')
+                && !name.starts_with('$')
+                && !SKIP_DIRS.iter().any(|skip| name.eq_ignore_ascii_case(skip))
         });
 
+    let mut count = 0;
     for entry in walker {
         match entry {
             Ok(e) => {
@@ -269,20 +275,25 @@ fn collect_files(dir: &Path, files: &mut Vec<PathBuf>) {
                     match ext {
                         Some(ref e) if INDEXABLE_EXTS.contains(&e.as_str()) => {
                             files.push(path.to_path_buf());
+                            count += 1;
                         }
                         None => {
                             // No extension - index it (README, Makefile, etc.)
                             files.push(path.to_path_buf());
+                            count += 1;
                         }
                         _ => {} // Skip non-indexable extensions
                     }
                 }
             }
             Err(e) => {
-                tracing::debug!("[INDEX] Walk error: {}", e);
+                // Log permission errors at warn level (not debug) for Win11 Pro diagnostics
+                tracing::warn!("[INDEX] Error accessing: {}", e);
             }
         }
     }
+
+    tracing::info!("[INDEX] Found {} files in {:?}", count, dir);
 }
 
 /// Insert a single file into the database using INSERT OR IGNORE
