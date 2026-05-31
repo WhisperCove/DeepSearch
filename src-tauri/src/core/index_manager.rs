@@ -55,27 +55,58 @@ pub struct IndexProgress {
     pub skipped: u64,
 }
 
-/// Get all directories to scan (home dir + all drives)
+/// Get directories to scan (user directories only for fast initial scan)
 pub fn get_all_scan_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
 
     // Add common user directories
     if let Some(home) = dirs::home_dir() {
-        let user_dirs = ["Desktop", "Documents", "Downloads", "Pictures", "Music", "Videos"];
+        let user_dirs = ["Desktop", "桌面", "Documents", "文档", "Downloads", "下载", "Pictures", "图片", "Music", "音乐", "Videos", "视频"];
         for dir_name in &user_dirs {
             let candidate = home.join(dir_name);
-            if candidate.exists() {
+            if candidate.exists() && candidate.is_dir() {
                 dirs.push(candidate);
+            }
+        }
+        
+        // Also check OneDrive folder if exists
+        let onedrive = home.join("OneDrive");
+        if onedrive.exists() && onedrive.is_dir() {
+            let onedrive_dirs = ["Desktop", "桌面", "Documents", "文档", "Downloads", "下载"];
+            for dir_name in &onedrive_dirs {
+                let candidate = onedrive.join(dir_name);
+                if candidate.exists() && candidate.is_dir() && !dirs.contains(&candidate) {
+                    dirs.push(candidate);
+                }
             }
         }
     }
 
-    // Scan all available drives
-    for letter in b'C'..=b'Z' {
-        let drive = format!("{}:\\", letter as char);
-        let drive_path = PathBuf::from(&drive);
-        if drive_path.exists() {
-            dirs.push(drive_path);
+    // Also check Windows registry for actual Desktop/Documents paths
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::HKEY_CURRENT_USER;
+        use winreg::RegKey;
+        
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(key) = hkcu.open_subkey_with_flags(
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders",
+            winreg::enums::KEY_READ,
+        ) {
+            // Get actual Desktop path
+            if let Ok(desktop) = key.get_value::<String, _>("Desktop") {
+                let desktop_path = PathBuf::from(&desktop);
+                if desktop_path.exists() && !dirs.contains(&desktop_path) {
+                    dirs.push(desktop_path);
+                }
+            }
+            // Get actual Documents path
+            if let Ok(docs) = key.get_value::<String, _>("Personal") {
+                let docs_path = PathBuf::from(&docs);
+                if docs_path.exists() && !dirs.contains(&docs_path) {
+                    dirs.push(docs_path);
+                }
+            }
         }
     }
 

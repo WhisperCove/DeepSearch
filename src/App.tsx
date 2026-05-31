@@ -177,7 +177,7 @@ function App() {
   const filteredResults = getFilteredResults();
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl">
+    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden border border-gray-200 dark:border-gray-800">
       {/* Title bar */}
       <div data-tauri-drag-region className="flex-none flex items-center justify-between px-4 pt-3 pb-1 select-none" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
         <div className="w-20" />
