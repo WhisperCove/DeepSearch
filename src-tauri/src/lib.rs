@@ -47,6 +47,7 @@ pub fn run() {
                     match event.id.as_ref() {
                         "show" => {
                             if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.unminimize();
                                 let _ = w.show();
                                 let _ = w.set_focus();
                                 let _ = app.emit("window-shown", ());
@@ -61,6 +62,7 @@ pub fn run() {
                     match event {
                         tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } => {
                             if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.unminimize();
                                 let _ = w.show();
                                 let _ = w.set_focus();
                                 let _ = app.emit("window-shown", ());
@@ -84,6 +86,7 @@ pub fn run() {
                     if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                         tracing::info!("[HOTKEY] Shift+Enter pressed, showing window");
                         if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.unminimize();
                             let _ = w.show();
                             let _ = w.set_focus();
                             let _ = app.emit("window-shown", ());
