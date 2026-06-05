@@ -30,8 +30,37 @@ function App() {
   const [hasMore, setHasMore] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [toast, setToast] = useState<{ id: number; message: string; type: "success" | "error" } | null>(null);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [dontShowCloseDialog, setDontShowCloseDialog] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [animKey, setAnimKey] = useState(0);
 
   const { searchQuery, previewFile, openFolder, copyPath, createIndex } = useSearch();
+
+  // Listen for window-shown event from Rust (tray/hotkey)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setup = async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen("window-shown", () => {
+          setIsVisible(false);
+          requestAnimationFrame(() => {
+            setAnimKey(prev => prev + 1);
+            setIsVisible(true);
+          });
+        });
+      } catch (e) {
+        console.error("Failed to listen for window-shown:", e);
+      }
+    };
+    setup();
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   // Check if first launch (use ref to avoid re-renders)
   const isFirstLaunchRef = useRef(false);
@@ -168,12 +197,29 @@ function App() {
   }, []);
 
   const handleClose = useCallback(async () => {
-    try {
-      await getCurrentWindow().close();
-    } catch (error) {
-      console.error("Close failed:", error);
+    const saved = localStorage.getItem("dontShowCloseDialog");
+    if (saved === "true") {
+      try {
+        await getCurrentWindow().hide();
+      } catch (e) { console.error(e); }
+      return;
     }
+    setShowCloseDialog(true);
   }, []);
+
+  const handleCloseConfirm = useCallback(async (action: "exit" | "minimize") => {
+    if (dontShowCloseDialog) {
+      localStorage.setItem("dontShowCloseDialog", "true");
+    }
+    setShowCloseDialog(false);
+    try {
+      if (action === "exit") {
+        await getCurrentWindow().close();
+      } else {
+        await getCurrentWindow().hide();
+      }
+    } catch (e) { console.error(e); }
+  }, [dontShowCloseDialog]);
 
   // Show splash screen
   if (appState === "splash") {
@@ -198,7 +244,12 @@ function App() {
   const filteredResults = getFilteredResults();
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden border border-gray-200 dark:border-gray-800">
+    <div 
+      key={animKey}
+      className={`h-screen w-screen flex flex-col bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-hidden border border-gray-200 dark:border-gray-800 ${
+        isVisible ? "animate-window-slide-up" : "opacity-0"
+      }`}
+    >
       {/* Title bar */}
       <div data-tauri-drag-region className="flex-none flex items-center justify-between px-4 pt-3 pb-1 select-none" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
         <div className="w-20" />
@@ -269,6 +320,41 @@ function App() {
               <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             )}
             <span className="text-sm font-medium whitespace-nowrap">{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Close Dialog */}
+      {showCloseDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-6 w-80">
+            <h3 className="text-base font-medium text-gray-900 dark:text-white mb-2">关闭 DeepSearch</h3>
+            <p className="text-sm text-gray-500 mb-6">选择如何处理窗口</p>
+            
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => handleCloseConfirm("minimize")}
+                className="flex-1 py-2.5 text-sm font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+              >
+                最小化至托盘
+              </button>
+              <button
+                onClick={() => handleCloseConfirm("exit")}
+                className="flex-1 py-2.5 text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+              >
+                直接退出
+              </button>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dontShowCloseDialog}
+                onChange={(e) => setDontShowCloseDialog(e.target.checked)}
+                className="w-3.5 h-3.5"
+              />
+              下次不再提示，直接最小化至托盘
+            </label>
           </div>
         </div>
       )}
