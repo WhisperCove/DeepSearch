@@ -3,7 +3,7 @@ import type { SearchResult } from "../types";
 
 interface ResultListProps {
   results: SearchResult[];
-  selectedId?: number;
+  selectedId?: string;
   onSelect: (result: SearchResult) => void;
   isLoading: boolean;
   onOpenFolder?: (path: string) => void;

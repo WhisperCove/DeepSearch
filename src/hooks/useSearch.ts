@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { SearchResult, SearchResponse, IndexStatus, PreviewResult } from "../types";
+import type { SearchResponse, IndexStatus, PreviewResult } from "../types";
 
 export function useSearch() {
   const searchQuery = async (query: string): Promise<SearchResponse> => {
