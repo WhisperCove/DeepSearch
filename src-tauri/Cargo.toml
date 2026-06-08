@@ -50,6 +50,7 @@ open = "5"
 winreg = "0.55"
 encoding_rs = "0.8"
 uuid = { version = "1", features = ["v4"] }
+clipboard-win = "5"
 
 # Encoding
 base64 = "0.22"

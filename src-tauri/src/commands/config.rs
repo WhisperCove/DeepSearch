@@ -21,13 +21,9 @@ pub async fn copy_path(path: String) -> Result<(), String> {
     tracing::info!("[CONFIG] Copying path to clipboard: {}", path);
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-        // Use PowerShell Set-Clipboard to avoid quotes that cmd echo | clip adds
-        let ps_command = format!("Set-Clipboard -Value '{}'", path.replace("'", "''"));
-        Command::new("powershell")
-            .args(["-Command", &ps_command])
-            .output()
-            .map_err(|e| e.to_string())?;
+        // Use clipboard-win to avoid command line window flash
+        clipboard_win::set_clipboard_string(&path)
+            .map_err(|e| format!("Failed to copy path to clipboard: {}", e))?;
     }
     #[cfg(target_os = "macos")]
     {
